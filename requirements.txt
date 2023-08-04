@@ -1,0 +1,6 @@
+nltk
+python-dotenv
+pymorphy2
+distool
+python-telegram-bot
+joblib
