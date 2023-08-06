@@ -25,13 +25,7 @@ morph = MorphAnalyzer()
 stop_words = set(stopwords.words('russian')) - set(['нет', 'не'])
 
 
-def start(update: Update, context: CallbackContext) -> None:
-    keyboard = [
-        [InlineKeyboardButton("Stop", callback_data='stop_action')]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    update.message.reply_text('''
+WELCOME_TEXT = '''
 Здравствуйте! 
 Перед вами демонстратор возможностей модуля PATIENT-INTAKE (https://github.com/niRMA-PATIENT-INTAKE/disease/). 
 Он создан для разработчиков медицинских чат-ботов. 
@@ -39,11 +33,35 @@ def start(update: Update, context: CallbackContext) -> None:
 часть данных при подключении модуля к реальному проекту должна уходить в информационную систему клиники, 
 а другая часть может быть использована для поддержания естественного диалога с пациентом, 
 обратившимся в диалоговый агент для записи к врачу.
-    '''.strip())
-    update.message.reply_text('''
+'''.strip()
+
+HINT_TEXT = '''
 Ниже вы можете ввести строчку с описанием самочувствия на естественном языке и получить ответ от системы.
 Пример строки: «у меня болит голова, сложно фокусироваться, но температуры нет».
-    ''', reply_markup=reply_markup)
+'''.strip()
+
+
+
+def start(update: Update, context: CallbackContext, chat_id = None) -> None:
+    keyboard = [
+        [InlineKeyboardButton("Stop", callback_data='stop_action')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    if chat_id:
+        context.bot.send_message(
+            chat_id=chat_id,
+            text=WELCOME_TEXT
+        )
+        context.bot.send_message(
+            chat_id=chat_id,
+            text=HINT_TEXT,
+            reply_markup=reply_markup
+        )
+    else:
+        update.message.reply_text(WELCOME_TEXT)
+        update.message.reply_text(HINT_TEXT, reply_markup=reply_markup)
+
     context.user_data['symptoms'] = ''
     context.user_data['attempt'] = 0
 
@@ -74,11 +92,11 @@ def button(update, context):
 
     if query.data == "start_action":
         query.edit_message_text(text="Начали!")
-        start(update, context)
+        start(update, context, query.message.chat_id)
     elif query.data == "stop_action":
         # Здесь код для обработки действия stop
         query.edit_message_text(text="Остановлено!")
-        stop(update, context)
+        stop(update, context, query.message.chat_id)
 
 
 def preprocess_text(text):
