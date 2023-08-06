@@ -48,14 +48,26 @@ def start(update: Update, context: CallbackContext) -> None:
     context.user_data['attempt'] = 0
 
 
-def stop(update: Update, context: CallbackContext) -> None:
+def stop(update: Update, context: CallbackContext, chat_id = None) -> None:
     keyboard = [
         [InlineKeyboardButton("Start", callback_data='start_action')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    update.message.reply_text('''Диалог закончен, выберите действие.''', reply_markup=reply_markup)
+
+    if chat_id:
+        context.bot.send_message(
+            chat_id=chat_id,
+            text='''Диалог закончен, выберите действие.''',
+            reply_markup=reply_markup
+        )
+    else:
+        update.message.reply_text(
+            '''Диалог закончен, выберите действие.''',
+            reply_markup=reply_markup
+        )
     context.user_data['symptoms'] = ''
     context.user_data['attempt'] = 0
+
 
 def button(update, context):
     query = update.callback_query
@@ -81,6 +93,11 @@ def preprocess_text(text):
 
 
 def handle_message(update: Update, context: CallbackContext) -> None:
+    keyboard = [
+        [InlineKeyboardButton("Stop", callback_data='stop_action')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
     # Пользовательский текст
     user_text = update.message.text
     # Предобработка текста
@@ -155,7 +172,7 @@ def handle_message(update: Update, context: CallbackContext) -> None:
         question += '\nМне не хватает данных для точного диагноза. Можете ли вы описать свои симптомы более подробно?'
         question += f"\nПодумайте, может у вас наблюдает один из этих сипмтомов: {', '.join(to_ask[:3])}?"
 
-        update.message.reply_text(question.strip())
+        update.message.reply_text(question.strip(), reply_markup=reply_markup)
     else:
         # Объяснение предсказания
         explanation = explainer.explain(features[0])
