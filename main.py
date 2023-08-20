@@ -13,14 +13,15 @@ from distool.feature_extraction import SmartSymptomExtractor
 from distool.feature_extraction.symptom_collection import SymptomCollection
 from distool.feature_extraction.symptom_status import SymptomStatus
 from distool.interpretation.explainer import SymptomBasedExplainer
-from distool.estimators import DiseaseClassifier
+from distool.estimators import DiseaseClassifier, UrgentClassifier
 
 load_dotenv()
 
 # Инициализация классификатора и векторизатора
 symptom_vectorizer = SmartSymptomExtractor()
-classifier = DiseaseClassifier.load("models/10-06-2023-classifier.joblib")
-explainer = SymptomBasedExplainer(symptom_vectorizer, classifier)
+disease_classifier = DiseaseClassifier.load("models/disease-classifier.joblib")
+urgent_classifier = UrgentClassifier.load("models/disease-classifier.joblib")
+explainer = SymptomBasedExplainer(symptom_vectorizer, disease_classifier)
 morph = MorphAnalyzer()
 stop_words = set(stopwords.words('russian')) - set(['нет', 'не'])
 
@@ -133,14 +134,14 @@ def handle_message(update: Update, context: CallbackContext) -> None:
     features = symptom_vectorizer.transform([context.user_data['symptoms']])
 
     # Предсказание болезни
-    predicted_disease = classifier.predict(features)[0]
-    confidence = max(classifier.predict_proba(features)[0])
+    predicted_disease = disease_classifier.predict(features)[0]
+    confidence = max(disease_classifier.predict_proba(features)[0])
     print(confidence)
 
     if confidence < 0.60:
-        predicted_disease_idx = np.argmax(classifier.predict_proba(features)[0])
+        predicted_disease_idx = np.argmax(disease_classifier.predict_proba(features)[0])
         # Получаем веса для этой болезни
-        disease_weights = np.abs(classifier.log_reg.coef_[predicted_disease_idx])
+        disease_weights = np.abs(disease_classifier.log_reg.coef_[predicted_disease_idx])
 
         # Получаем индексы трех наиболее важных симптомов
         top_symptoms_indices = disease_weights.argsort()[::-1]
@@ -166,8 +167,21 @@ def handle_message(update: Update, context: CallbackContext) -> None:
                 stop(update, context)
                 return
 
-            update.message.reply_text("Cимптомы подходят для нескольких категорий заболеваний, "
-                                      "предварительную диагностику может произвести только специалист")
+            answer = (
+                "Cимптомы подходят для нескольких категорий заболеваний, "
+                "предварительную диагностику может произвести только специалист."
+            )
+
+            if has_symptoms:
+                answer += f"\nПрисутствуют симптомы: {', '.join(has_symptoms)}."
+
+            if no_symptoms:
+                answer += f"\nОтрицаются следующие: {', '.join(no_symptoms)}."
+
+            if conf_symptoms:
+                answer += f"\nПока не понятно: {', '.join(conf_symptoms)}."
+
+            update.message.reply_text(answer)
             stop(update, context)
             return
 
@@ -191,14 +205,26 @@ def handle_message(update: Update, context: CallbackContext) -> None:
         question += f"\nПодумайте, может у вас наблюдает один из этих сипмтомов: {', '.join(to_ask[:3])}?"
 
         update.message.reply_text(question.strip(), reply_markup=reply_markup)
+    elif predicted_disease in ["орви", "covid-19"]:
+        update.message.reply_text("Выявлена группа респираторных заболеваний, есть риск COVID-19,"
+                                  " невозможна диагностика с использованием ml-модели")
     else:
         # Объяснение предсказания
         explanation = explainer.explain(features[0])
 
         # Отправка ответа пользователю
         update.message.reply_text(f"Предварительный диагноз: {predicted_disease}\n{explanation}")
-        if predicted_disease in [""]:
-            pass
+
+        if predicted_disease in ["инфаркт", "аритмия"]:
+            urgent_message = "Мы выявили группу кардиологических заболеваний. Ваш предварительный статус: "
+            is_urgent = urgent_classifier.predict(features)[0]
+
+            if is_urgent:
+                urgent_message += "срочный. Советуем срочно обратиться к специалисту."
+            else:
+                urgent_message += "плановый. Это не значит, что не нужно идти к врачу. Совутем незамедлительно " \
+                                  "обратиться к специалисту при любом подозрении на ухудшение."
+            update.message.reply_text(urgent_message)
 
         update.message.reply_text('''
         Напоминаем вам, что вы находитесь в режиме демонстратора работы модуля, 

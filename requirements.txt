@@ -107,7 +107,6 @@ rapidfuzz==3.2.0
 readthedocs-sphinx-search==0.3.1
 regex==2023.6.3
 requests==2.31.0
-ru-core-news-md @ https://github.com/explosion/spacy-models/releases/download/ru_core_news_md-3.6.0/ru_core_news_md-3.6.0-py3-none-any.whl
 SALib==1.4.7
 scikit-learn==1.3.0
 scikit-optimize==0.9.0
