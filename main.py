@@ -13,14 +13,14 @@ from distool.feature_extraction import SmartSymptomExtractor
 from distool.feature_extraction.symptom_collection import SymptomCollection
 from distool.feature_extraction.symptom_status import SymptomStatus
 from distool.interpretation.explainer import SymptomBasedExplainer
-from distool.estimators import DiseaseClassifier, UrgentClassifier
+from distool.estimators import DiseaseClassifier, UrgencyClassifier
 
 load_dotenv()
 
 # Инициализация классификатора и векторизатора
 symptom_vectorizer = SmartSymptomExtractor()
 disease_classifier = DiseaseClassifier.load("models/disease-classifier.joblib")
-urgent_classifier = UrgentClassifier.load("models/disease-classifier.joblib")
+urgent_classifier = UrgencyClassifier.load("models/urgent-classifier.joblib")
 explainer = SymptomBasedExplainer(symptom_vectorizer, disease_classifier)
 morph = MorphAnalyzer()
 stop_words = set(stopwords.words('russian')) - set(['нет', 'не'])
